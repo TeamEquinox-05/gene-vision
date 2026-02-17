@@ -1,9 +1,27 @@
+# Core dependencies for RAG system
 langchain
 langchain-core
-pypdf
 langchain-community
+
+# PDF processing
+pypdf
 pymupdf
+
+# ML and embeddings
 sentence-transformers
 transformers
-faiss-cpu
+torch
+
+# Vector databases
 chromadb
+faiss-cpu
+
+# API framework
+fastapi
+uvicorn[standard]
+pydantic
+
+# Utilities
+tqdm
+numpy
+psutil

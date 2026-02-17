@@ -25,6 +25,10 @@ class GeneResult(BaseModel):
     gene_symbol: str = Field(..., description="Gene symbol (e.g., Lep)")
     gene_name: str = Field(..., description="Full gene name (e.g., Leptin)")
     description: str = Field(..., description="Gene description/function")
+    is_curated: bool = Field(
+        default=False,
+        description="Whether this gene has curated metadata (True) or is from raw database (False)",
+    )
     mgi_ids: List[str] = Field(default_factory=list, description="MGI Gene IDs")
     alleles: List[str] = Field(default_factory=list, description="Known alleles")
     phenotypes: List[PhenotypeResult] = Field(..., description="Associated phenotypes")

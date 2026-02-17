@@ -88,8 +88,105 @@ class BiologicalValidator:
     }
 
     # Confidence thresholds for RAG results
-    HIGH_CONFIDENCE = 0.03  # Lowered from 0.15
-    MEDIUM_CONFIDENCE = 0.01  # Lowered from 0.05
+    HIGH_CONFIDENCE = 0.04
+    MEDIUM_CONFIDENCE = 0.02
+    LOW_CONFIDENCE = 0.01
+
+    # Impossible anatomical features for mammals
+    IMPOSSIBLE_ANATOMY = {
+        "wings": {
+            "explanation": "Wings are not possible in mice. Mammals do not have the anatomical structures required for flight (no specialized forelimbs with flight feathers or membranes in mice).",
+            "closest_genes": [],
+            "alternatives": ["elongated limbs", "skeletal modifications"],
+        },
+        "gills": {
+            "explanation": "Gills are impossible in mice. Mice are terrestrial mammals that breathe air through lungs, not aquatic organisms. They lack the gill structures found in fish.",
+            "closest_genes": [],
+            "alternatives": ["respiratory system changes", "lung modifications"],
+        },
+        "feathers": {
+            "explanation": "Feathers are avian-specific structures. Mammals, including mice, have hair/fur, not feathers. This is a fundamental difference between birds and mammals.",
+            "closest_genes": [],
+            "alternatives": ["fur texture changes", "hairless mouse"],
+        },
+        "scales": {
+            "explanation": "Scales (like reptilian or fish scales) are not found in mice. While mice do have tail scales, these are epidermal structures very different from reptilian/fish scales.",
+            "closest_genes": [],
+            "alternatives": ["skin texture changes", "tail morphology"],
+        },
+        "antenna": {
+            "explanation": "Antennae are arthropod sensory structures. Mice have whiskers (vibrissae) for sensing, not antennae.",
+            "closest_genes": [],
+            "alternatives": ["whisker length", "sensory hair modifications"],
+        },
+        "tentacles": {
+            "explanation": "Tentacles are found in cephalopods and other invertebrates, not mammals. Mice have standard mammalian limb structure.",
+            "closest_genes": [],
+            "alternatives": ["limb elongation", "digit modifications"],
+        },
+    }
+
+    # Limb count constraints
+    LIMB_COUNT_ISSUES = {
+        "two legs": {
+            "explanation": "Mice are quadrupeds with four legs. While mutations can cause limb loss, a natural 'two-legged' mouse standing upright is not achievable through single gene modification.",
+            "closest_genes": [],
+            "alternatives": ["limb reduction", "shortened limbs", "polydactyly"],
+        },
+        "2 legs": {
+            "explanation": "Mice are quadrupeds with four legs. While mutations can cause limb loss, a natural 'two-legged' mouse standing upright is not achievable through single gene modification.",
+            "closest_genes": [],
+            "alternatives": ["limb reduction", "shortened limbs", "polydactyly"],
+        },
+        "six legs": {
+            "explanation": "Six legs (hexapod body plan) is an insect characteristic. Mammals have four limbs as a conserved tetrapod feature. No genetic modification can add extra limb pairs.",
+            "closest_genes": [],
+            "alternatives": ["polydactyly (extra digits)", "limb duplication"],
+        },
+        "6 legs": {
+            "explanation": "Six legs (hexapod body plan) is an insect characteristic. Mammals have four limbs as a conserved tetrapod feature. No genetic modification can add extra limb pairs.",
+            "closest_genes": [],
+            "alternatives": ["polydactyly (extra digits)", "limb duplication"],
+        },
+        "eight legs": {
+            "explanation": "Eight legs is an arachnid body plan. Mammals have the tetrapod four-limb body plan, which cannot be changed to eight limbs through gene modification.",
+            "closest_genes": [],
+            "alternatives": ["polydactyly (extra digits)", "limb morphology"],
+        },
+        "no legs": {
+            "explanation": "While severe limb reduction is theoretically possible, complete absence of all four limbs in a viable mouse is extremely rare and not controlled by monogenic traits.",
+            "closest_genes": [],
+            "alternatives": [
+                "shortened limbs",
+                "limb reduction",
+                "digit abnormalities",
+            ],
+        },
+    }
+
+    # Additional impossible traits
+    IMPOSSIBLE_TRAITS = {
+        "transparent": {
+            "explanation": "Transparent or see-through tissue is not possible in mice naturally. Mice have opaque tissues and organs.",
+            "closest_genes": [],
+            "alternatives": ["hairless mouse (visible skin)", "albino mouse"],
+        },
+        "glowing": {
+            "explanation": "Natural bioluminescence does not exist in mice. While GFP transgenic mice exist in research, this is not a natural genetic modification.",
+            "closest_genes": [],
+            "alternatives": ["white fur (appears to glow in certain light)", "albino"],
+        },
+        "metallic": {
+            "explanation": "Metallic or reflective fur is not possible. Mammalian hair does not produce structural coloration like some bird feathers or insect exoskeletons.",
+            "closest_genes": [],
+            "alternatives": ["glossy fur", "diluted coat color"],
+        },
+        "glitter": {
+            "explanation": "Glittery or sparkly appearance is not possible in natural mouse fur. This would require structural coloration not found in mammals.",
+            "closest_genes": [],
+            "alternatives": ["light colored fur", "white fur"],
+        },
+    }
 
     def validate_query(
         self, user_prompt: str, top_gene_score: Optional[float] = None
@@ -125,24 +222,58 @@ class BiologicalValidator:
                         confidence_level="low",
                     )
 
+        # Check for impossible anatomical features
+        for feature, details in self.IMPOSSIBLE_ANATOMY.items():
+            if feature in prompt_lower:
+                return BiologicalWarning(
+                    type="impossible_trait",
+                    message=details["explanation"],
+                    suggestions=details["alternatives"],
+                    confidence_level="low",
+                )
+
+        # Check for limb count issues
+        for phrase, details in self.LIMB_COUNT_ISSUES.items():
+            if phrase in prompt_lower:
+                return BiologicalWarning(
+                    type="impossible_trait",
+                    message=details["explanation"],
+                    suggestions=details["alternatives"],
+                    confidence_level="low",
+                )
+
+        # Check for other impossible traits
+        for trait, details in self.IMPOSSIBLE_TRAITS.items():
+            if trait in prompt_lower:
+                return BiologicalWarning(
+                    type="impossible_trait",
+                    message=details["explanation"],
+                    suggestions=details["alternatives"],
+                    confidence_level="low",
+                )
+
         # Check confidence level based on RAG score
         if top_gene_score is not None:
-            if top_gene_score < self.MEDIUM_CONFIDENCE:
+            if top_gene_score < self.LOW_CONFIDENCE:
                 return BiologicalWarning(
                     type="low_confidence",
-                    message=f"Low confidence match (score: {top_gene_score:.3f}). The query may describe a trait not well-represented in the database, or it may be biologically uncommon. Results shown are the closest available matches.",
+                    message=f"Very low confidence match (score: {top_gene_score:.3f}). The query may describe a trait not in the database, or it may not be achievable through monogenic modification. Results shown are the closest available matches.",
+                    suggestions=[
+                        "Try rephrasing with more specific phenotype terms",
+                        "Use scientific terminology",
+                        "Check if trait is biologically feasible in mice",
+                    ],
+                    confidence_level="low",
+                )
+            elif top_gene_score < self.MEDIUM_CONFIDENCE:
+                return BiologicalWarning(
+                    type="low_confidence",
+                    message=f"Low confidence match (score: {top_gene_score:.3f}). The trait may be complex or involve multiple genes. Results shown are the closest single-gene matches.",
                     suggestions=[
                         "Try rephrasing with more specific terms",
                         "Use scientific phenotype terms",
                     ],
                     confidence_level="low",
-                )
-            elif top_gene_score < self.HIGH_CONFIDENCE:
-                return BiologicalWarning(
-                    type="ambiguous",
-                    message=f"Moderate confidence match (score: {top_gene_score:.3f}). Consider reviewing results carefully.",
-                    suggestions=[],
-                    confidence_level="medium",
                 )
 
         return None
@@ -197,18 +328,19 @@ class GeneRAGEngine:
         # Step 4: Rank genes
         ranked_genes = self.rank_genes(aggregated_genes)
 
-        # Step 5: Filter to only curated genes with minimum score threshold
+        # Step 5: Filter by minimum score threshold (ALL genes, not just curated)
         MINIMUM_SCORE_THRESHOLD = 0.01  # Filter out very weak matches
-        curated_genes = [
-            g
-            for g in ranked_genes
-            if g["gene_symbol"] in CURATED_GENES
-            and g["aggregate_score"] >= MINIMUM_SCORE_THRESHOLD
+        filtered_genes = [
+            g for g in ranked_genes if g["aggregate_score"] >= MINIMUM_SCORE_THRESHOLD
         ]
-        top_genes = curated_genes[:top_k]
+        top_genes = filtered_genes[:top_k]
 
+        curated_count = sum(1 for g in top_genes if g.get("is_curated", False))
         print(
-            f"  🎯 Filtered to {len(curated_genes)} curated genes (min score: {MINIMUM_SCORE_THRESHOLD}), returning top {len(top_genes)}"
+            f"  🎯 Filtered to {len(filtered_genes)} genes (min score: {MINIMUM_SCORE_THRESHOLD})"
+        )
+        print(
+            f"  📊 Returning top {len(top_genes)} genes ({curated_count} curated ⭐, {len(top_genes) - curated_count} from database)"
         )
 
         # Step 6: Format response
@@ -257,6 +389,7 @@ class GeneRAGEngine:
                 "gene_symbol": "",
                 "gene_name": "",
                 "description": "",
+                "is_curated": False,
                 "mgi_ids": [],
                 "alleles": [],
                 "phenotypes": [],
@@ -279,6 +412,7 @@ class GeneRAGEngine:
                 gene_info["gene_symbol"] = gene_sym
                 gene_info["gene_name"] = result.get("gene_name", "")
                 gene_info["description"] = result.get("description", "")
+                gene_info["is_curated"] = result.get("is_curated", False)
 
             # Add phenotype with score
             phenotype = {
@@ -412,6 +546,7 @@ class GeneRAGEngine:
                 gene_symbol=gene_info.get("gene_symbol", ""),
                 gene_name=gene_info.get("gene_name", ""),
                 description=gene_info.get("description", ""),
+                is_curated=gene_info.get("is_curated", False),
                 mgi_ids=gene_info.get("mgi_ids", []),
                 alleles=gene_info.get("alleles", []),
                 phenotypes=phenotype_results,

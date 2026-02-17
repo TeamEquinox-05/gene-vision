@@ -16,7 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from rag_engine import GeneRAGEngine
 from schemas import QueryRequest, QueryResponse, HealthResponse, GeneListResponse
 from gene_curator import CURATED_GENES
-from config import CHROMA_DB_PATH
+from config import CHROMA_DB_PATH, PROCESSED_DATA_FILE
+import json
 
 # Global RAG engine instance
 rag_engine = None
@@ -92,10 +93,15 @@ async def health_check():
         )
         doc_count = collection.count()
 
+        # Load actual gene count from processed data
+        with open(PROCESSED_DATA_FILE, "r") as f:
+            gene_data = json.load(f)
+            genes_count = len(gene_data)
+
         return HealthResponse(
             status="healthy",
             version="1.0.0",
-            genes_indexed=len(CURATED_GENES),
+            genes_indexed=genes_count,
             phenotypes_indexed=doc_count,
         )
     except Exception as e:

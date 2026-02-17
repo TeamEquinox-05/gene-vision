@@ -74,17 +74,32 @@ echo ""
 
 # Wait for services to start
 echo -e "${BLUE}⏳ Waiting for services to initialize...${NC}"
+echo -e "   (RAG API embedding model needs ~10-15 seconds to load)"
 sleep 5
 
 # Health checks
 echo ""
 echo -e "${BLUE}🏥 Running health checks...${NC}"
 
-# Check RAG API
-if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-    echo -e "${GREEN}   ✅ RAG API is healthy${NC}"
-else
-    echo -e "${RED}   ❌ RAG API failed to start${NC}"
+# Check RAG API with retry logic (embedding model takes time to load)
+RAG_HEALTHY=0
+for i in {1..6}; do
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        echo -e "${GREEN}   ✅ RAG API is healthy${NC}"
+        RAG_HEALTHY=1
+        break
+    else
+        if [ $i -lt 6 ]; then
+            echo -e "${YELLOW}   ⏳ RAG API not ready yet, waiting... (attempt $i/6)${NC}"
+            sleep 3
+        fi
+    fi
+done
+
+if [ $RAG_HEALTHY -eq 0 ]; then
+    echo -e "${YELLOW}   ⚠️  RAG API health check timed out${NC}"
+    echo -e "      This is normal if the embedding model is still loading."
+    echo -e "      The frontend has retry logic built-in."
     echo -e "      Check logs: tail -f /tmp/rag-api.log"
 fi
 
