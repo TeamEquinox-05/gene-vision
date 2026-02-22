@@ -1,8 +1,13 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
+
+// Gemini API setup
+const GEMINI_API_KEY = "AIzaSyArZ10DbHPh9TC1urTqwXRhxZ5sfMrT_00";
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -153,6 +158,89 @@ eyes visible when description says eyeless or without eyes
 
     res.status(500).json({
       error: error.message || "Failed to generate image",
+    });
+  }
+});
+
+// -----------------------------
+// Disease Chat Endpoint (Gemini)
+// -----------------------------
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message, history } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    // Try models in order of preference - fallback if quota is exhausted
+    const modelNames = ["gemini-2.5-flash", "gemini-2.0-flash"];
+
+    const systemPrompt = `You are a specialized veterinary genetics AI assistant focused on diseases in rats (Rattus norvegicus). Your expertise includes:
+- Common and rare diseases affecting laboratory and wild rats
+- Genetic basis of rat diseases
+- Symptoms, diagnosis, and treatment options
+- Zoonotic diseases (diseases transmissible between rats and humans)
+- Rat models used in biomedical research for human diseases
+- Genetic mutations linked to disease susceptibility in rats
+
+Always provide scientifically accurate information. When discussing diseases, mention relevant genes if applicable. Keep responses concise but informative. If a question is outside the scope of rat diseases, politely redirect the conversation back to rat disease topics.`;
+
+    // Build chat history for context
+    const chatHistory = [];
+    if (history && Array.isArray(history)) {
+      for (const msg of history) {
+        chatHistory.push({
+          role: msg.role === "user" ? "user" : "model",
+          parts: [{ text: msg.content }],
+        });
+      }
+    }
+
+    let response = null;
+    let lastError = null;
+
+    for (const modelName of modelNames) {
+      try {
+        console.log(`Trying model: ${modelName}`);
+        const model = genAI.getGenerativeModel({ model: modelName });
+
+        const chat = model.startChat({
+          history: [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            { role: "model", parts: [{ text: "Understood. I am a specialized veterinary genetics AI assistant focused on diseases in rats. I will provide scientifically accurate information about rat diseases, their genetic basis, symptoms, diagnosis, treatment, and their use in biomedical research. How can I help you today?" }] },
+            ...chatHistory,
+          ],
+        });
+
+        const result = await chat.sendMessage(message);
+        response = result.response.text();
+        console.log(`Success with model: ${modelName}`);
+        break; // Success, stop trying
+      } catch (modelError) {
+        console.warn(`Model ${modelName} failed:`, modelError.message);
+        lastError = modelError;
+        // If it's a quota/rate limit error, try next model
+        if (modelError.message.includes("429") || modelError.message.includes("quota")) {
+          continue;
+        }
+        // For other errors, don't retry
+        throw modelError;
+      }
+    }
+
+    if (response === null) {
+      throw lastError || new Error("All models exhausted their quota. Please try again later.");
+    }
+
+    res.json({
+      success: true,
+      reply: response,
+    });
+  } catch (error) {
+    console.error(" Chat Error:", error);
+    res.status(500).json({
+      error: error.message || "Failed to get response from AI ",
     });
   }
 });

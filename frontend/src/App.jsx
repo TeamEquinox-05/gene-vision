@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Plus, Minus, Save, Download, Upload, Zap, Activity, Eye, Settings, ChevronRight, Play } from 'lucide-react';
+import { Search, Plus, Minus, Save, Download, Upload, Zap, Activity, Eye, Settings, ChevronRight, Play, Bug } from 'lucide-react';
 import './App.css';
 import DNAHelix3D from './DNAHelix3D';
 import ReconstructionPanel from './ReconstructionPanel';
 import EvolutionPanel from './EvolutionPanel';
+import DiseaseChatPanel from './DiseaseChatPanel';
 
 // --- Gene Card Component ---
 function GeneCard({ gene, onToggle, onRemove, onValueChange }) {
@@ -75,6 +76,7 @@ export default function App() {
     { name: 'Health', icon: Activity },
     { name: 'Evolution', icon: Zap },
     { name: 'Reconstruction', icon: Eye },
+    { name: 'Disease Chat', icon: Bug },
   ];
 
   const handleGeneValueChange = (id, value) => {
@@ -147,6 +149,8 @@ export default function App() {
           <ReconstructionPanel />
         ) : activeTab === 'Evolution' ? (
           <EvolutionPanel />
+        ) : activeTab === 'Disease Chat' ? (
+          <DiseaseChatPanel />
         ) : (
           <>
         {/* Left Panel: DNA & Gene Controls */}
