@@ -1,18 +1,3 @@
-{
-  "name": "gene-backend",
-  "version": "1.0.0",
-  "description": "Proxy server for Hugging Face API",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "node-fetch": "^3.3.2"
-  }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:a8d45d8c4bf4fed9bb2000812b8d2b09ff24bbf49baedfb47863037a1a87d9b3
+size 392
